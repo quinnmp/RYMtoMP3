@@ -3,6 +3,7 @@ const NodeID3 = require("node-id3");
 const cheerio = require("cheerio");
 const path = require("path");
 const fs = require("fs");
+const Lame = require("node-lame").Lame;
 const axios = require("axios");
 
 const outputFolderPath = path.join(__dirname, "..", "output");
@@ -65,7 +66,7 @@ async function writeMP3WithMetadata(data) {
         });
 
     const promises = metadataArray.map(async (metadata, index) => {
-        const inputFile = `temp/temp${index}.mp3`; // Input file path
+        const inputFile = `../temp/temp${index}.mp3`; // Input file path
 
         try {
             // Set the metadata

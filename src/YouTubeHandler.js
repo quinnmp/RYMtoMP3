@@ -5,8 +5,10 @@ const ytdl = require("ytdl-core");
 const ffmpeg = require("fluent-ffmpeg");
 const path = require("path");
 const { writeMP3WithMetadata } = require("./writeMP3");
+const Lame = require("node-lame").Lame;
 
 const tempFolderPath = path.join(__dirname, "..", "temp");
+let trackLengths = [];
 
 function getTrackLengths(data) {
     return new Promise((resolve, reject) => {
@@ -45,7 +47,7 @@ function getTrackLengths(data) {
 
 async function downloadTracks(data) {
     try {
-        const trackLengths = await getTrackLengths(data);
+        trackLengths = await getTrackLengths(data);
         console.log(trackLengths);
         // Load the HTML content into cheerio
         const $ = cheerio.load(data);
@@ -66,20 +68,19 @@ async function downloadTracks(data) {
             }
         }
 
-        await new Promise((resolve, reject) => {
-            // console.log("Downloading audio...");
-            // const audioStream = ytdl(
-            //     `https://www.youtube.com/watch?v=${defaultID}`,
-            //     {
-            //         quality: "highestaudio",
-            //         filter: "audioonly",
-            //     }
-            // );
+        console.log("Downloading audio...");
+        const audioStream = ytdl(
+            `https://www.youtube.com/watch?v=${defaultID}`,
+            {
+                quality: "highestaudio",
+                filter: "audioonly",
+            }
+        );
 
-            // audioStream.pipe(fs.createWriteStream("audio.mp3"));
+        audioStream.pipe(fs.createWriteStream("audio.mp3"));
 
-            // audioStream.on("end", () => {
-            console.log("Audio downloaded! Cropping...");
+        audioStream.on("end", async () => {
+            console.log("Audio downloaded! Deleting temp files...");
 
             fs.readdir(tempFolderPath, (err, files) => {
                 if (err) {
@@ -105,54 +106,99 @@ async function downloadTracks(data) {
                     });
                 });
             });
-
-            let seconds = 0;
-
-            trackLengths.forEach(async (trackLength, index) => {
-                fs.writeFile(
-                    `temp/temp${index}.mp3`,
-                    Buffer.alloc(0),
-                    (err) => {
-                        if (err) {
-                            console.error(err);
-                        } else {
-                            console.log(
-                                `File temp/temp${index}.mp3 has been created successfully.`
-                            );
-                            // Use fluent-ffmpeg for cropping
-                            ffmpeg("audio.mp3")
-                                .setStartTime(seconds) // Start time in seconds
-                                .setDuration(trackLength) // Duration in seconds
-                                .audioCodec("libmp3lame")
-                                // .audioBitrate(192) // Specify LAME codec
-                                .output(`temp/temp${index}.mp3`)
-                                .on("end", () => {
-                                    console.log("Audio cropped successfully!");
-                                    resolve();
-                                })
-                                .on("error", (err) => {
-                                    console.error(
-                                        "Error cropping audio:",
-                                        err.message
-                                    );
-                                    reject(err);
-                                })
-                                .run();
-                            seconds += trackLength;
-                        }
-                    }
-                );
-            });
-            // });
-
-            // audioStream.on("error", (err) => {
-            //     console.error("Error downloading audio:", err.message);
-            //     reject(err);
-            // });
+        });
+        audioStream.on("error", (err) => {
+            console.error("Error downloading audio:", err.message);
         });
     } catch (error) {
         console.error("Error in downloadTracks:", error.message);
     }
+}
+
+async function processAudio() {
+    let seconds = 0;
+
+    console.log("Pre-promise");
+    await Promise.all(
+        trackLengths.map(async (length, index) => {
+            return new Promise((resolve, reject) => {
+                fs.writeFile(
+                    `../temp/temp${index}.mp3`,
+                    Buffer.alloc(0),
+                    async (err) => {
+                        if (err) {
+                            console.error(err);
+                            reject(err);
+                        } else {
+                            console.log(
+                                `File temp/temp${index}.mp3 has been created successfully.`
+                            );
+                            fs.writeFile(
+                                `../temp/${index}.mp3`,
+                                Buffer.alloc(0),
+                                async (err) => {
+                                    if (err) {
+                                        console.error(err);
+                                        reject(err);
+                                    } else {
+                                        console.log(
+                                            `File temp/${index}.mp3 has been created successfully.`
+                                        );
+                                        await new Promise(
+                                            (resolveFFMPEG, rejectFFMPEG) => {
+                                                ffmpeg("audio.mp3")
+                                                    .setStartTime(seconds)
+                                                    .setDuration(
+                                                        trackLengths[index]
+                                                    )
+                                                    .audioCodec("libmp3lame")
+                                                    .audioQuality(0) // Set audio quality (0 is highest)
+                                                    .addOption(
+                                                        "-metadata",
+                                                        "encoder=LAME3.100"
+                                                    )
+                                                    .output(
+                                                        `../temp/temp${index}.mp3`
+                                                    )
+                                                    .on("end", () => {
+                                                        const encoder =
+                                                            new Lame({
+                                                                output: `../temp/${index}.mp3`,
+                                                                bitrate: 192,
+                                                            }).setFile(
+                                                                `../temp/temp${index}.mp3`
+                                                            );
+                                                        encoder
+                                                            .encode()
+                                                            .then(() => {
+                                                                console.log(
+                                                                    `Audio cropped successfully for track ${index}!`
+                                                                );
+                                                                resolveFFMPEG();
+                                                            });
+                                                    })
+                                                    .on("error", (err) => {
+                                                        console.error(
+                                                            "Error cropping audio:",
+                                                            err.message
+                                                        );
+                                                        rejectFFMPEG(err);
+                                                    })
+                                                    .run();
+                                            }
+                                        );
+
+                                        seconds += length;
+                                        resolve();
+                                    }
+                                }
+                            );
+                        }
+                    }
+                );
+            });
+        })
+    );
 }
 
 const url = "https://rateyourmusic.com/release/album/sufjan-stevens/javelin/";
@@ -163,6 +209,8 @@ axios
         console.log("Response recieved from RYM!");
         data = response.data;
         await downloadTracks(data);
+        // await processAudio();
+        console.log("All audio cropped!");
         writeMP3WithMetadata(data);
     })
     .catch((error) => {
