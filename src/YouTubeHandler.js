@@ -8,6 +8,7 @@ const { writeMP3WithMetadata } = require("./writeMP3");
 const Lame = require("node-lame").Lame;
 
 const tempFolderPath = path.join(__dirname, "..", "temp");
+const albumFolderPath = path.join(__dirname, "..", "album");
 let trackLengths = [];
 
 function getTrackLengths(data) {
@@ -36,8 +37,16 @@ function getTrackLengths(data) {
                 })
                 .get()
                 .filter((duration) => !isNaN(duration));
-            // Convert each timestamp in the array to seconds
-            resolve(spanTextArray);
+
+            let cumulativeTimestampArray = [0];
+
+            for (let i = 0; i < spanTextArray.length; i++) {
+                cumulativeTimestampArray.push(
+                    cumulativeTimestampArray[i] + spanTextArray[i]
+                );
+            }
+
+            resolve(cumulativeTimestampArray);
         } else {
             console.error('No <ul> element with id "tracks" found.');
             reject(error);
@@ -79,36 +88,102 @@ async function downloadTracks(data) {
 
         audioStream.pipe(fs.createWriteStream("audio.mp3"));
 
-        audioStream.on("end", async () => {
-            console.log("Audio downloaded! Deleting temp files...");
+        const deleteTempFiles = () => {
+            return new Promise((resolve, reject) => {
+                fs.readdir(tempFolderPath, (err, files) => {
+                    if (err) {
+                        console.error("Error reading folder:", err);
+                        reject(err);
+                        return;
+                    }
 
-            fs.readdir(tempFolderPath, (err, files) => {
-                if (err) {
-                    console.error("Error reading folder:", err);
-                    return;
-                }
+                    // Loop through each file and delete it
+                    const deletionPromises = files.map((file) => {
+                        const filePath = path.join(tempFolderPath, file);
 
-                // Loop through each file and delete it
-                files.forEach((file) => {
-                    const filePath = path.join(tempFolderPath, file);
-
-                    // Delete the file
-                    fs.unlink(filePath, (err) => {
-                        if (err) {
-                            console.error(
-                                "Error deleting file:",
-                                filePath,
-                                err
-                            );
-                        } else {
-                            console.log("Deleted file:", filePath);
-                        }
+                        return new Promise((resolveFile, rejectFile) => {
+                            // Delete the file
+                            fs.unlink(filePath, (err) => {
+                                if (err) {
+                                    console.error(
+                                        "Error deleting file:",
+                                        filePath,
+                                        err
+                                    );
+                                    rejectFile(err);
+                                } else {
+                                    console.log("Deleted file:", filePath);
+                                    resolveFile();
+                                }
+                            });
+                        });
                     });
+
+                    // Wait for all deletion promises to resolve
+                    Promise.all(deletionPromises)
+                        .then(() => resolve())
+                        .catch((err) => reject(err));
                 });
             });
-        });
+        };
+
+        const deleteAlbumFiles = () => {
+            return new Promise((resolve, reject) => {
+                fs.readdir(albumFolderPath, (err, files) => {
+                    if (err) {
+                        console.error("Error reading folder:", err);
+                        reject(err);
+                        return;
+                    }
+
+                    // Loop through each file and delete it
+                    const deletionPromises = files.map((file) => {
+                        const filePath = path.join(albumFolderPath, file);
+
+                        return new Promise((resolveFile, rejectFile) => {
+                            // Delete the file
+                            fs.unlink(filePath, (err) => {
+                                if (err) {
+                                    console.error(
+                                        "Error deleting file:",
+                                        filePath,
+                                        err
+                                    );
+                                    rejectFile(err);
+                                } else {
+                                    console.log("Deleted file:", filePath);
+                                    resolveFile();
+                                }
+                            });
+                        });
+                    });
+
+                    // Wait for all deletion promises to resolve
+                    Promise.all(deletionPromises)
+                        .then(() => resolve())
+                        .catch((err) => reject(err));
+                });
+            });
+        };
+
         audioStream.on("error", (err) => {
             console.error("Error downloading audio:", err.message);
+        });
+
+        // Return a promise that resolves when audioStream ends
+        return new Promise((resolve, reject) => {
+            audioStream.on("end", async () => {
+                console.log("Audio downloaded! Deleting old temp files...");
+                await deleteTempFiles();
+
+                console.log("Deleting old album files...");
+                await deleteAlbumFiles();
+                resolve();
+            });
+
+            audioStream.on("error", (err) => {
+                reject(err);
+            });
         });
     } catch (error) {
         console.error("Error in downloadTracks:", error.message);
@@ -116,11 +191,8 @@ async function downloadTracks(data) {
 }
 
 async function processAudio() {
-    let seconds = 0;
-
-    console.log("Pre-promise");
     await Promise.all(
-        trackLengths.map(async (length, index) => {
+        trackLengths.slice(0, -1).map(async (length, index) => {
             return new Promise((resolve, reject) => {
                 fs.writeFile(
                     `../temp/temp${index}.mp3`,
@@ -134,7 +206,7 @@ async function processAudio() {
                                 `File temp/temp${index}.mp3 has been created successfully.`
                             );
                             fs.writeFile(
-                                `../temp/${index}.mp3`,
+                                `../album/${index}.mp3`,
                                 Buffer.alloc(0),
                                 async (err) => {
                                     if (err) {
@@ -142,14 +214,22 @@ async function processAudio() {
                                         reject(err);
                                     } else {
                                         console.log(
-                                            `File temp/${index}.mp3 has been created successfully.`
+                                            `File album/${index}.mp3 has been created successfully.`
+                                        );
+                                        console.log(
+                                            trackLengths[index + 1] -
+                                                trackLengths[index]
                                         );
                                         await new Promise(
                                             (resolveFFMPEG, rejectFFMPEG) => {
                                                 ffmpeg("audio.mp3")
-                                                    .setStartTime(seconds)
-                                                    .setDuration(
+                                                    .setStartTime(
                                                         trackLengths[index]
+                                                    )
+                                                    .setDuration(
+                                                        trackLengths[
+                                                            index + 1
+                                                        ] - trackLengths[index]
                                                     )
                                                     .audioCodec("libmp3lame")
                                                     .audioQuality(0) // Set audio quality (0 is highest)
@@ -163,7 +243,7 @@ async function processAudio() {
                                                     .on("end", () => {
                                                         const encoder =
                                                             new Lame({
-                                                                output: `../temp/${index}.mp3`,
+                                                                output: `../album/${index}.mp3`,
                                                                 bitrate: 192,
                                                             }).setFile(
                                                                 `../temp/temp${index}.mp3`
@@ -187,8 +267,6 @@ async function processAudio() {
                                                     .run();
                                             }
                                         );
-
-                                        seconds += length;
                                         resolve();
                                     }
                                 }
@@ -201,7 +279,9 @@ async function processAudio() {
     );
 }
 
-const url = "https://rateyourmusic.com/release/album/sufjan-stevens/javelin/";
+async function deleteTemp() {}
+
+const url = "https://rateyourmusic.com/release/ep/earl-sweatshirt/solace/";
 let data = undefined;
 axios
     .get(url)
@@ -209,7 +289,9 @@ axios
         console.log("Response recieved from RYM!");
         data = response.data;
         await downloadTracks(data);
-        // await processAudio();
+        console.log("Post Download Tracks");
+        await processAudio();
+        await deleteTemp();
         console.log("All audio cropped!");
         writeMP3WithMetadata(data);
     })
