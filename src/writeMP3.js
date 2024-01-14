@@ -13,8 +13,45 @@ async function dataToMetadata(data) {
 
     let album = $("div.album_title:first").text().trim();
     album = album.replace(/ By .+$/, "").trim();
-    const artist = $("a.artist:first").text().trim();
-    const genre = $("a.genre:first").text().trim();
+    const artists = $("span[itemprop='byArtist'] a.artist");
+    let artistTexts = "";
+    artists.each(function (index, element) {
+        // Replace each item with its text value
+        const artistText = $(element).text().trim();
+        artistTexts = artistTexts + artistText + "\0";
+    });
+    artistTexts = artistTexts.substring(0, artistTexts.length - 1);
+    const genres = $("span.release_pri_genres a.genre");
+    let genreTexts = "";
+    genres.each(function (index, element) {
+        // Replace each item with its text value
+        const genreText = $(element).text().trim();
+        genreTexts = genreTexts + genreText + "\0";
+    });
+    genreTexts = genreTexts.substring(0, genreTexts.length - 1);
+
+    // Get an array of all track li elements
+    let tracks = $("ul.tracks:first li.track");
+    tracks = tracks.slice(0, -1);
+    let featuredArtistTexts = [];
+    tracks.each(function (index, element) {
+        // Search for links to artists within the track li - this means they are a featured artist
+        const featuredArtists = $(element).find("li.featured_credit a.artist");
+        featuredArtistTexts.push("");
+
+        // Loop through each found link within the current track li
+        featuredArtists.each(function (artistIndex, artistElement) {
+            // Replace each item with its text value
+            const featuredArtistText = $(artistElement).text().trim();
+            featuredArtistTexts[index] =
+                featuredArtistTexts[index] + featuredArtistText + "\0";
+        });
+        featuredArtistTexts[index] = featuredArtistTexts[index].substring(
+            0,
+            featuredArtistTexts[index].length - 1
+        );
+    });
+    console.log(featuredArtistTexts);
     const yearHref = $("a[href^='/charts/top/album/']:first").attr("href");
     const year = yearHref ? yearHref.split("/").pop() : "";
     let imageURL = $("img[alt^='Cover art']").attr("src");
@@ -45,13 +82,18 @@ async function dataToMetadata(data) {
     trackList.forEach((element, index) => {
         let title = $(element).find("span.tracklist_title:first").text().trim();
         title = title.split("\n")[0].trim();
+        let trackArtists = artistTexts;
+        if (featuredArtistTexts[index] != "") {
+            trackArtists = trackArtists + "\0" + featuredArtistTexts[index];
+        }
+        console.log(trackArtists);
         let trackNumber = index + 1;
         let trackMetadata = {
             title: title,
-            performerInfo: artist,
+            performerInfo: trackArtists,
             album: album,
             year: year,
-            genre: genre,
+            genre: genreTexts,
             trackNumber: trackNumber,
             image: image,
         };

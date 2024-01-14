@@ -279,9 +279,8 @@ async function processAudio() {
     );
 }
 
-async function deleteTemp() {}
-
-const url = "https://rateyourmusic.com/release/ep/earl-sweatshirt/solace/";
+const url =
+    "https://rateyourmusic.com/release/album/jpegmafia-x-danny-brown/scaring-the-hoes/";
 let data = undefined;
 axios
     .get(url)
