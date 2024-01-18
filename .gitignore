@@ -131,4 +131,7 @@ dist
 
 # temp files
 album/*
+!album/temp.txt
 temp/*
+!temp/temp.txt
+src/fullAudio.mp3
