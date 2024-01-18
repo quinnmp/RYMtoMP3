@@ -66,19 +66,30 @@ async function downloadTracks(data) {
             }
         }
 
-        await scdl
-            .downloadPlaylist("https://" + defaultLink)
-            .then(([streams]) => {
-                streams.forEach((val, idx) => {
-                    val.pipe(
-                        fs.createWriteStream(
-                            path.join("../album/", idx + ".mp3")
-                        )
-                    );
+        defaultLinkParsed = defaultLink.split("/");
+
+        if (defaultLinkParsed[defaultLinkParsed.length - 2] == "sets") {
+            await scdl
+                .downloadPlaylist("https://" + defaultLink)
+                .then(([streams]) => {
+                    streams.forEach((val, idx) => {
+                        val.pipe(
+                            fs.createWriteStream(
+                                path.join("../album/", idx + ".mp3")
+                            )
+                        );
+                    });
+                    console.log("Resolving");
+                    resolve();
                 });
+        } else {
+            await scdl.download("https://" + defaultLink).then((stream) => {
+                stream.pipe(fs.createWriteStream(path.join("../album/0.mp3")));
+
                 console.log("Resolving");
                 resolve();
             });
+        }
     });
 }
 
