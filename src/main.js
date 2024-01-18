@@ -9,6 +9,16 @@ const args = process.argv.slice(2); // The first two elements are node and the s
 
 url = args[0];
 
+let preferSoundcloud = true;
+if (args.length >= 1 && args.includes("-y")) {
+    preferSoundcloud = false;
+}
+
+let ignore = false;
+if (args.length >= 1 && args.includes("-i")) {
+    ignore = true;
+}
+
 axios
     .get(url)
     .then((response) => {
@@ -29,19 +39,37 @@ axios
             $("#media_link_button_container_top").attr("data-links")
         );
 
-        if (mediaLinks.soundcloud != undefined) {
-            console.log("Soundcloud link found!");
-            handleSoundcloudLink(data);
+        if (preferSoundcloud) {
+            if (mediaLinks.soundcloud != undefined) {
+                console.log("Soundcloud link found!");
+                handleSoundcloudLink(data);
+            } else {
+                console.log("Soundcloud link not found...");
+                if (mediaLinks.youtube != undefined) {
+                    console.log("YouTube link found!");
+                    handleYouTubeLink(data);
+                } else {
+                    console.log("YouTube link not found...");
+                    console.log(
+                        "This release doesn't have a Soundcloud or YouTube link :("
+                    );
+                }
+            }
         } else {
-            console.log("Soundcloud link not found...");
             if (mediaLinks.youtube != undefined) {
                 console.log("YouTube link found!");
-                handleYouTubeLink(data);
+                handleYouTubeLink(data, ignore);
             } else {
                 console.log("YouTube link not found...");
-                console.log(
-                    "This release doesn't have a Soundcloud or YouTube link :("
-                );
+                if (mediaLinks.soundcloud != undefined) {
+                    console.log("Soundcloud link found!");
+                    handleSoundcloudLink(data);
+                } else {
+                    console.log("Soundcloud link not found...");
+                    console.log(
+                        "This release doesn't have a Soundcloud or YouTube link :("
+                    );
+                }
             }
         }
     })

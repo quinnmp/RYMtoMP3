@@ -51,7 +51,6 @@ async function dataToMetadata(data) {
             featuredArtistTexts[index].length - 1
         );
     });
-    console.log(featuredArtistTexts);
     const yearHref = $("a[href^='/charts/top/album/']:first").attr("href");
     const year = yearHref ? yearHref.split("/").pop() : "";
     let imageURL = $("img[alt^='Cover art']").attr("src");
@@ -86,7 +85,6 @@ async function dataToMetadata(data) {
         if (featuredArtistTexts[index] != "") {
             trackArtists = trackArtists + "\0" + featuredArtistTexts[index];
         }
-        console.log(trackArtists);
         let trackNumber = index + 1;
         let trackMetadata = {
             title: title,

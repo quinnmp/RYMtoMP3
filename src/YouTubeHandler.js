@@ -10,6 +10,19 @@ const Lame = require("node-lame").Lame;
 const tempFolderPath = path.join(__dirname, "..", "temp");
 const albumFolderPath = path.join(__dirname, "..", "album");
 let trackLengths = [];
+let ignoreDiscrepancy = false;
+let downloadSuccessful = false;
+
+async function getVideoLength(videoUrl) {
+    try {
+        const info = await ytdl.getInfo(videoUrl);
+        const videoLengthInSeconds = info.videoDetails.lengthSeconds - 1;
+        return videoLengthInSeconds;
+    } catch (error) {
+        console.error("Error getting video length:", error.message);
+        throw error;
+    }
+}
 
 function getTrackLengths(data) {
     return new Promise((resolve, reject) => {
@@ -57,7 +70,6 @@ function getTrackLengths(data) {
 async function downloadTracks(data) {
     try {
         trackLengths = await getTrackLengths(data);
-        console.log(trackLengths);
         // Load the HTML content into cheerio
         const $ = cheerio.load(data);
 
@@ -77,114 +89,148 @@ async function downloadTracks(data) {
             }
         }
 
-        console.log("Downloading audio...");
-        const audioStream = ytdl(
-            `https://www.youtube.com/watch?v=${defaultID}`,
-            {
-                quality: "highestaudio",
-                filter: "audioonly",
-            }
-        );
+        const videoUrl = `https://www.youtube.com/watch?v=${defaultID}`;
+        await getVideoLength(videoUrl)
+            .then((length) => {
+                const duration = length;
+                if (
+                    !ignoreDiscrepancy &&
+                    Math.abs(duration - trackLengths[trackLengths.length - 1]) >
+                        2
+                ) {
+                    throw new Error(
+                        "Album duration and YouTube video length differ by more than 2 seconds, indicating some poor cropping. Run again with -i to ignore this error."
+                    );
+                }
+                console.log("Downloading audio...");
+                const audioStream = ytdl(videoUrl, {
+                    quality: "highestaudio",
+                    filter: "audioonly",
+                });
 
-        audioStream.pipe(fs.createWriteStream("audio.mp3"));
+                audioStream.pipe(fs.createWriteStream("fullAudio.mp3"));
 
-        const deleteTempFiles = () => {
-            return new Promise((resolve, reject) => {
-                fs.readdir(tempFolderPath, (err, files) => {
-                    if (err) {
-                        console.error("Error reading folder:", err);
-                        reject(err);
-                        return;
-                    }
+                const deleteTempFiles = () => {
+                    return new Promise((resolve, reject) => {
+                        fs.readdir(tempFolderPath, (err, files) => {
+                            if (err) {
+                                console.error("Error reading folder:", err);
+                                reject(err);
+                                return;
+                            }
 
-                    // Loop through each file and delete it
-                    const deletionPromises = files.map((file) => {
-                        const filePath = path.join(tempFolderPath, file);
+                            // Loop through each file and delete it
+                            const deletionPromises = files.map((file) => {
+                                const filePath = path.join(
+                                    tempFolderPath,
+                                    file
+                                );
 
-                        return new Promise((resolveFile, rejectFile) => {
-                            // Delete the file
-                            fs.unlink(filePath, (err) => {
-                                if (err) {
-                                    console.error(
-                                        "Error deleting file:",
-                                        filePath,
-                                        err
-                                    );
-                                    rejectFile(err);
-                                } else {
-                                    console.log("Deleted file:", filePath);
-                                    resolveFile();
-                                }
+                                return new Promise(
+                                    (resolveFile, rejectFile) => {
+                                        // Delete the file
+                                        fs.unlink(filePath, (err) => {
+                                            if (err) {
+                                                console.error(
+                                                    "Error deleting file:",
+                                                    filePath,
+                                                    err
+                                                );
+                                                rejectFile(err);
+                                            } else {
+                                                console.log(
+                                                    "Deleted file:",
+                                                    filePath
+                                                );
+                                                resolveFile();
+                                            }
+                                        });
+                                    }
+                                );
                             });
+
+                            // Wait for all deletion promises to resolve
+                            Promise.all(deletionPromises)
+                                .then(() => resolve())
+                                .catch((err) => reject(err));
                         });
                     });
+                };
 
-                    // Wait for all deletion promises to resolve
-                    Promise.all(deletionPromises)
-                        .then(() => resolve())
-                        .catch((err) => reject(err));
-                });
-            });
-        };
+                const deleteAlbumFiles = () => {
+                    return new Promise((resolve, reject) => {
+                        fs.readdir(albumFolderPath, (err, files) => {
+                            if (err) {
+                                console.error("Error reading folder:", err);
+                                reject(err);
+                                return;
+                            }
 
-        const deleteAlbumFiles = () => {
-            return new Promise((resolve, reject) => {
-                fs.readdir(albumFolderPath, (err, files) => {
-                    if (err) {
-                        console.error("Error reading folder:", err);
-                        reject(err);
-                        return;
-                    }
+                            // Loop through each file and delete it
+                            const deletionPromises = files.map((file) => {
+                                const filePath = path.join(
+                                    albumFolderPath,
+                                    file
+                                );
 
-                    // Loop through each file and delete it
-                    const deletionPromises = files.map((file) => {
-                        const filePath = path.join(albumFolderPath, file);
-
-                        return new Promise((resolveFile, rejectFile) => {
-                            // Delete the file
-                            fs.unlink(filePath, (err) => {
-                                if (err) {
-                                    console.error(
-                                        "Error deleting file:",
-                                        filePath,
-                                        err
-                                    );
-                                    rejectFile(err);
-                                } else {
-                                    console.log("Deleted file:", filePath);
-                                    resolveFile();
-                                }
+                                return new Promise(
+                                    (resolveFile, rejectFile) => {
+                                        // Delete the file
+                                        fs.unlink(filePath, (err) => {
+                                            if (err) {
+                                                console.error(
+                                                    "Error deleting file:",
+                                                    filePath,
+                                                    err
+                                                );
+                                                rejectFile(err);
+                                            } else {
+                                                console.log(
+                                                    "Deleted file:",
+                                                    filePath
+                                                );
+                                                resolveFile();
+                                            }
+                                        });
+                                    }
+                                );
                             });
+
+                            // Wait for all deletion promises to resolve
+                            Promise.all(deletionPromises)
+                                .then(() => resolve())
+                                .catch((err) => reject(err));
                         });
                     });
+                };
 
-                    // Wait for all deletion promises to resolve
-                    Promise.all(deletionPromises)
-                        .then(() => resolve())
-                        .catch((err) => reject(err));
+                audioStream.on("error", (err) => {
+                    console.error("Error downloading audio:", err.message);
                 });
+
+                // Return a promise that resolves when audioStream ends
+                return new Promise((resolve, reject) => {
+                    audioStream.on("end", async () => {
+                        downloadSuccessful = true;
+                        console.log(
+                            "Audio downloaded! Deleting old temp files..."
+                        );
+                        await deleteTempFiles();
+
+                        console.log("Deleting old album files...");
+                        await deleteAlbumFiles();
+                        resolve();
+                    });
+
+                    audioStream.on("error", (err) => {
+                        reject(err);
+                    });
+                });
+            })
+            .catch((error) => {
+                console.error("Error getting video length:", error.message);
+                throw new Error("Failed to get video length");
             });
-        };
-
-        audioStream.on("error", (err) => {
-            console.error("Error downloading audio:", err.message);
-        });
-
-        // Return a promise that resolves when audioStream ends
-        return new Promise((resolve, reject) => {
-            audioStream.on("end", async () => {
-                console.log("Audio downloaded! Deleting old temp files...");
-                await deleteTempFiles();
-
-                console.log("Deleting old album files...");
-                await deleteAlbumFiles();
-                resolve();
-            });
-
-            audioStream.on("error", (err) => {
-                reject(err);
-            });
-        });
     } catch (error) {
         console.error("Error in downloadTracks:", error.message);
     }
@@ -216,13 +262,9 @@ async function processAudio() {
                                         console.log(
                                             `File album/${index}.mp3 has been created successfully.`
                                         );
-                                        console.log(
-                                            trackLengths[index + 1] -
-                                                trackLengths[index]
-                                        );
                                         await new Promise(
                                             (resolveFFMPEG, rejectFFMPEG) => {
-                                                ffmpeg("audio.mp3")
+                                                ffmpeg("fullAudio.mp3")
                                                     .setStartTime(
                                                         trackLengths[index]
                                                     )
@@ -279,13 +321,15 @@ async function processAudio() {
     );
 }
 
-async function handleYouTubeLink(data) {
+async function handleYouTubeLink(data, ignore) {
+    ignoreDiscrepancy = ignore;
     await downloadTracks(data);
-    console.log("Post Download Tracks");
-    await processAudio();
-    await deleteTemp();
-    console.log("All audio cropped!");
-    writeMP3WithMetadata(data);
+    if (downloadSuccessful) {
+        console.log("Post Download Tracks");
+        await processAudio();
+        console.log("All audio cropped!");
+        writeMP3WithMetadata(data);
+    }
 }
 
 module.exports = { handleYouTubeLink };
