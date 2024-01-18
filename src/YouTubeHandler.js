@@ -279,22 +279,13 @@ async function processAudio() {
     );
 }
 
-const url =
-    "https://rateyourmusic.com/release/album/jpegmafia-x-danny-brown/scaring-the-hoes/";
-let data = undefined;
-axios
-    .get(url)
-    .then(async (response) => {
-        console.log("Response recieved from RYM!");
-        data = response.data;
-        await downloadTracks(data);
-        console.log("Post Download Tracks");
-        await processAudio();
-        await deleteTemp();
-        console.log("All audio cropped!");
-        writeMP3WithMetadata(data);
-    })
-    .catch((error) => {
-        console.error("Error making the request:", error.message);
-        return undefined;
-    });
+async function handleYouTubeLink(data) {
+    await downloadTracks(data);
+    console.log("Post Download Tracks");
+    await processAudio();
+    await deleteTemp();
+    console.log("All audio cropped!");
+    writeMP3WithMetadata(data);
+}
+
+module.exports = { handleYouTubeLink };

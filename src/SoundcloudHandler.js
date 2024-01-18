@@ -1,12 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const scdl = require("soundcloud-downloader").default;
-const axios = require("axios");
 const cheerio = require("cheerio");
 const { writeMP3WithMetadata } = require("./writeMP3");
-const Lame = require("node-lame").Lame;
 
-const tempFolderPath = path.join(__dirname, "..", "temp");
 const albumFolderPath = path.join(__dirname, "..", "album");
 
 async function deleteOld() {
@@ -85,21 +82,12 @@ async function downloadTracks(data) {
     });
 }
 
-const url =
-    "https://rateyourmusic.com/release/album/jpegmafia-x-danny-brown/scaring-the-hoes/";
-let data = undefined;
-axios
-    .get(url)
-    .then(async (response) => {
-        console.log("Response recieved from RYM!");
-        data = response.data;
-        await deleteOld();
-        console.log("Post Delete Old");
-        await downloadTracks(data);
-        console.log("Post Download Tracks");
-        writeMP3WithMetadata(data);
-    })
-    .catch((error) => {
-        console.error("Error making the request:", error.message);
-        return undefined;
-    });
+async function handleSoundcloudLink(data) {
+    await deleteOld();
+    console.log("Post Delete Old");
+    await downloadTracks(data);
+    console.log("Post Download Tracks");
+    writeMP3WithMetadata(data);
+}
+
+module.exports = { handleSoundcloudLink };
