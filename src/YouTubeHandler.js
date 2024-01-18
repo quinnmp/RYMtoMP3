@@ -325,7 +325,6 @@ async function handleYouTubeLink(data, ignore) {
     ignoreDiscrepancy = ignore;
     await downloadTracks(data);
     if (downloadSuccessful) {
-        console.log("Post Download Tracks");
         await processAudio();
         console.log("All audio cropped!");
         writeMP3WithMetadata(data);

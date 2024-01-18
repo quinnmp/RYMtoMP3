@@ -79,14 +79,12 @@ async function downloadTracks(data) {
                             )
                         );
                     });
-                    console.log("Resolving");
                     resolve();
                 });
         } else {
             await scdl.download("https://" + defaultLink).then((stream) => {
                 stream.pipe(fs.createWriteStream(path.join("../album/0.mp3")));
 
-                console.log("Resolving");
                 resolve();
             });
         }
@@ -95,9 +93,7 @@ async function downloadTracks(data) {
 
 async function handleSoundCloudLink(data) {
     await deleteOld();
-    console.log("Post Delete Old");
     await downloadTracks(data);
-    console.log("Post Download Tracks");
     writeMP3WithMetadata(data);
 }
 
