@@ -11,7 +11,7 @@ Run `npm install`.
 
 Then, just run `node ./main.js {rym link}` in the `src` directory.
 
-(`{rym link}` is the link to the RYM page with the music you want to download (e.g. `https://rateyourmusic.com/release/album/earl-sweatshirt-the-alchemist/voir-dire/` or `https://rateyourmusic.com/release/single/billy-woods/body-of-work/`)
+(`{rym link}` is the link to the RYM page with the music you want to download, e.g. `https://rateyourmusic.com/release/album/earl-sweatshirt-the-alchemist/voir-dire/` or `https://rateyourmusic.com/release/single/billy-woods/body-of-work/`)
 
 Wait for the script to fully finish, and your downloaded tracks with all the metadata can be found in the `\album` directory. Enjoy!
 
