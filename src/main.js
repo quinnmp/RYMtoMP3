@@ -2,16 +2,16 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 
 const { handleYouTubeLink } = require("./YouTubeHandler");
-const { handleSoundcloudLink } = require("./SoundcloudHandler");
+const { handleSoundCloudLink } = require("./SoundCloudHandler");
 
 // Access command line arguments
 const args = process.argv.slice(2); // The first two elements are node and the script file
 
 url = args[0];
 
-let preferSoundcloud = true;
+let preferSoundCloud = true;
 if (args.length >= 1 && args.includes("-y")) {
-    preferSoundcloud = false;
+    preferSoundCloud = false;
 }
 
 let ignore = false;
@@ -39,19 +39,19 @@ axios
             $("#media_link_button_container_top").attr("data-links")
         );
 
-        if (preferSoundcloud) {
+        if (preferSoundCloud) {
             if (mediaLinks.soundcloud != undefined) {
-                console.log("Soundcloud link found!");
-                handleSoundcloudLink(data);
+                console.log("SoundCloud link found!");
+                handleSoundCloudLink(data);
             } else {
-                console.log("Soundcloud link not found...");
+                console.log("SoundCloud link not found...");
                 if (mediaLinks.youtube != undefined) {
                     console.log("YouTube link found!");
                     handleYouTubeLink(data);
                 } else {
                     console.log("YouTube link not found...");
                     console.log(
-                        "This release doesn't have a Soundcloud or YouTube link :("
+                        "This release doesn't have a SoundCloud or YouTube link :("
                     );
                 }
             }
@@ -62,12 +62,12 @@ axios
             } else {
                 console.log("YouTube link not found...");
                 if (mediaLinks.soundcloud != undefined) {
-                    console.log("Soundcloud link found!");
-                    handleSoundcloudLink(data);
+                    console.log("SoundCloud link found!");
+                    handleSoundCloudLink(data);
                 } else {
-                    console.log("Soundcloud link not found...");
+                    console.log("SoundCloud link not found...");
                     console.log(
-                        "This release doesn't have a Soundcloud or YouTube link :("
+                        "This release doesn't have a SoundCloud or YouTube link :("
                     );
                 }
             }

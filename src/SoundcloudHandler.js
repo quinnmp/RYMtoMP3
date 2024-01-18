@@ -55,14 +55,14 @@ async function downloadTracks(data) {
         //     Grab the data-links attribute
         //     Turn it into a JSON
         //     Grab the youtube field
-        const SoundcloudLinks = JSON.parse(
+        const SoundCloudLinks = JSON.parse(
             $("#media_link_button_container_top").attr("data-links")
         ).soundcloud;
 
         defaultLink = undefined;
-        for (const key in SoundcloudLinks) {
-            if (SoundcloudLinks[key].default === true) {
-                defaultLink = SoundcloudLinks[key].url;
+        for (const key in SoundCloudLinks) {
+            if (SoundCloudLinks[key].default === true) {
+                defaultLink = SoundCloudLinks[key].url;
             }
         }
 
@@ -93,7 +93,7 @@ async function downloadTracks(data) {
     });
 }
 
-async function handleSoundcloudLink(data) {
+async function handleSoundCloudLink(data) {
     await deleteOld();
     console.log("Post Delete Old");
     await downloadTracks(data);
@@ -101,4 +101,4 @@ async function handleSoundcloudLink(data) {
     writeMP3WithMetadata(data);
 }
 
-module.exports = { handleSoundcloudLink };
+module.exports = { handleSoundCloudLink };
