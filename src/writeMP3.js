@@ -54,7 +54,9 @@ async function dataToMetadata(data) {
     const yearHref = $("a[href^='/charts/top/album/']:first").attr("href");
     const year = yearHref ? yearHref.split("/").pop() : "";
     let imageURL = $("img[alt^='Cover art']").attr("src");
-    imageURL = imageURL.substring(2);
+    if (imageURL) {
+        imageURL = imageURL.substring(2);
+    }
 
     let image = "";
 
