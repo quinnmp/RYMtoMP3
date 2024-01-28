@@ -1,23 +1,45 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
+const yargs = require("yargs");
 
 const { handleYouTubeLink } = require("./YouTubeHandler");
 const { handleSoundCloudLink } = require("./SoundCloudHandler");
 
-// Access command line arguments
-const args = process.argv.slice(2); // The first two elements are node and the script file
+const argv = yargs
+    .option("YouTubeLink", {
+        alias: "u",
+        describe: "Specify a specific YouTube link",
+        type: "string",
+    })
+    .option("SoundCloudLink", {
+        alias: "s",
+        describe: "Specify a specific SoundCloud link",
+        type: "string",
+    })
+    .option("preferYouTube", {
+        alias: "y",
+        describe: "Prefer YouTube",
+        type: "boolean",
+    })
+    .option("ignore", {
+        alias: "i",
+        describe: "Ignore",
+        type: "boolean",
+    })
+    .help().argv;
 
-url = args[0];
+// Access the parsed arguments
+const url = argv._[0];
+const preferYouTube = argv.preferYouTube;
+const ignore = argv.ignore;
+const YouTubeLink = argv.YouTubeLink;
+const SoundCloudLink = argv.SoundCloudLink;
 
-let preferSoundCloud = true;
-if (args.length >= 1 && args.includes("-y")) {
-    preferSoundCloud = false;
-}
-
-let ignore = false;
-if (args.length >= 1 && args.includes("-i")) {
-    ignore = true;
-}
+console.log("URL:", url);
+console.log("Prefer YouTube:", preferYouTube);
+console.log("Ignore:", ignore);
+console.log("YouTube Link:", YouTubeLink);
+console.log("SoundCloud Link:", SoundCloudLink);
 
 axios
     .get(url)
@@ -28,10 +50,16 @@ axios
         const $ = cheerio.load(data);
 
         if (
-            $("#media_link_button_container_top").length == 0 ||
-            $("#media_link_button_container_top").attr("data-links") == "{}"
+            ($("#media_link_button_container_top").length == 0 ||
+                $("#media_link_button_container_top").attr("data-links") ==
+                    "{}") &&
+            !YouTubeLink &&
+            !SoundCloudLink
         ) {
             console.log("No media links! Sorry.");
+            console.log(
+                "You can use -u or -s to specify a YouTube or SoundCloud link you'd like to use."
+            );
             return;
         }
 
@@ -39,15 +67,21 @@ axios
             $("#media_link_button_container_top").attr("data-links")
         );
 
-        if (preferSoundCloud) {
-            if (mediaLinks.soundcloud != undefined) {
+        if (!preferYouTube) {
+            if (
+                mediaLinks.soundcloud != undefined ||
+                SoundCloudLink != undefined
+            ) {
                 console.log("SoundCloud link found!");
-                handleSoundCloudLink(data);
+                handleSoundCloudLink(data, SoundCloudLink);
             } else {
                 console.log("SoundCloud link not found...");
-                if (mediaLinks.youtube != undefined) {
+                if (
+                    mediaLinks.youtube != undefined ||
+                    YouTubeLink != undefined
+                ) {
                     console.log("YouTube link found!");
-                    handleYouTubeLink(data);
+                    handleYouTubeLink(data, YouTubeLink, ignore);
                 } else {
                     console.log("YouTube link not found...");
                     console.log(
@@ -56,14 +90,17 @@ axios
                 }
             }
         } else {
-            if (mediaLinks.youtube != undefined) {
+            if (mediaLinks.youtube != undefined || YouTubeLink != undefined) {
                 console.log("YouTube link found!");
-                handleYouTubeLink(data, ignore);
+                handleYouTubeLink(data, YouTubeLink, ignore);
             } else {
                 console.log("YouTube link not found...");
-                if (mediaLinks.soundcloud != undefined) {
+                if (
+                    mediaLinks.soundcloud != undefined ||
+                    SoundCloudLink != undefined
+                ) {
                     console.log("SoundCloud link found!");
-                    handleSoundCloudLink(data);
+                    handleSoundCloudLink(data, SoundCloudLink);
                 } else {
                     console.log("SoundCloud link not found...");
                     console.log(

@@ -67,7 +67,7 @@ function getTrackLengths(data) {
     });
 }
 
-async function downloadTracks(data) {
+async function downloadTracks(data, specifiedLink) {
     try {
         trackLengths = await getTrackLengths(data);
         // Load the HTML content into cheerio
@@ -89,7 +89,9 @@ async function downloadTracks(data) {
             }
         }
 
-        const videoUrl = `https://www.youtube.com/watch?v=${defaultID}`;
+        const videoUrl = specifiedLink
+            ? specifiedLink
+            : `https://www.youtube.com/watch?v=${defaultID}`;
         await getVideoLength(videoUrl)
             .then((length) => {
                 const duration = length;
@@ -321,9 +323,9 @@ async function processAudio() {
     );
 }
 
-async function handleYouTubeLink(data, ignore) {
+async function handleYouTubeLink(data, specifiedLink, ignore) {
     ignoreDiscrepancy = ignore;
-    await downloadTracks(data);
+    await downloadTracks(data, specifiedLink);
     if (downloadSuccessful) {
         await processAudio();
         console.log("All audio cropped!");

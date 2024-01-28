@@ -45,7 +45,7 @@ async function deleteOld() {
     });
 }
 
-async function downloadTracks(data) {
+async function downloadTracks(data, specifiedLink) {
     return new Promise(async (resolve, reject) => {
         // Load the HTML content into cheerio
         const $ = cheerio.load(data);
@@ -59,11 +59,16 @@ async function downloadTracks(data) {
             $("#media_link_button_container_top").attr("data-links")
         ).soundcloud;
 
-        defaultLink = undefined;
-        for (const key in SoundCloudLinks) {
-            if (SoundCloudLinks[key].default === true) {
-                defaultLink = SoundCloudLinks[key].url;
+        let defaultLink = undefined;
+        if (!specifiedLink) {
+            for (const key in SoundCloudLinks) {
+                if (SoundCloudLinks[key].default === true) {
+                    defaultLink = SoundCloudLinks[key].url;
+                }
             }
+        } else {
+            specifiedLink = specifiedLink.replace("https://", "");
+            defaultLink = specifiedLink;
         }
 
         defaultLinkParsed = defaultLink.split("/");
@@ -91,9 +96,9 @@ async function downloadTracks(data) {
     });
 }
 
-async function handleSoundCloudLink(data) {
+async function handleSoundCloudLink(data, specifiedLink) {
     await deleteOld();
-    await downloadTracks(data);
+    await downloadTracks(data, specifiedLink);
     writeMP3WithMetadata(data);
 }
 
