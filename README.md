@@ -56,6 +56,7 @@ I'd like to add support for:
 -   Better error handling
     -   Right now, if the primary method fails (default SoundCloud), the whole code crashes. Ideally, it would move on to the secondary method (default YouTube).
 -   Genius API for lyrics
+-   Rename "album" directory to actual album name
 
 ## Development
 
