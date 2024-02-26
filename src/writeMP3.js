@@ -1,4 +1,5 @@
 const NodeID3 = require("node-id3");
+const fs = require("fs");
 
 const cheerio = require("cheerio");
 const path = require("path");
@@ -69,7 +70,7 @@ async function dataToMetadata(data) {
             // Embed the downloaded image as the album cover
             image = {
                 type: { id: 3, name: "front cover" },
-                mime: "image/jpeg", // Adjust the MIME type based on the image format
+                mime: "image/jpeg", // Because I like JPEGs
                 description: "Album Cover",
                 imageBuffer: Buffer.from(response.data),
             };
@@ -104,10 +105,15 @@ async function dataToMetadata(data) {
 }
 
 async function writeMP3WithMetadata(data) {
-    const metadataArray = await dataToMetadata(data); // Assuming dataToMetadata is a function that processes individual data items
+    const metadataArray = await dataToMetadata(data);
 
     const promises = metadataArray.map(async (metadata, index) => {
-        const inputFile = `../album/${index}.mp3`; // Input file path
+        const inputFile = path.join(
+            __dirname,
+            "..",
+            metadata.album,
+            `${index}.mp3`
+        ); // Input file path
 
         try {
             // Set the metadata
@@ -122,7 +128,24 @@ async function writeMP3WithMetadata(data) {
             };
 
             // Write the metadata to the MP3 buffer
-            const taggedMp3Buffer = NodeID3.write(tags, inputFile);
+            NodeID3.write(tags, inputFile);
+
+            fs.rename(
+                inputFile,
+                path.join(
+                    __dirname,
+                    "..",
+                    metadata.album,
+                    `${metadata.title}.mp3`
+                ),
+                (err) => {
+                    if (err) {
+                        console.error("Error renaming file:", err);
+                    } else {
+                        console.log(`Metadata written to ${metadata.title}.`);
+                    }
+                }
+            );
         } catch (error) {
             throw `Error processing MP3 file: ${error}`;
         }

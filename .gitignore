@@ -130,8 +130,6 @@ dist
 .pnp.*
 
 # temp files
-album/*
-!album/temp.txt
-temp/*
-!temp/temp.txt
+/*
+!/src/
 src/fullAudio.mp3

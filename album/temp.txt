@@ -1,1 +1,0 @@
-This directory stores the songs in your album. This file should get deleted on your first request.

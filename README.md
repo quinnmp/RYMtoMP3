@@ -15,7 +15,7 @@ Then, just run `node ./main.js {rym link}` in the `src` directory.
 
 (`{rym link}` is the link to the RYM page with the music you want to download, e.g. `https://rateyourmusic.com/release/album/earl-sweatshirt-the-alchemist/voir-dire/` or `https://rateyourmusic.com/release/single/billy-woods/body-of-work/`)
 
-Wait for the script to fully finish, and your downloaded tracks with all the metadata can be found in the `\album` directory. Enjoy!
+Wait for the script to fully finish, and your downloaded tracks with all the metadata can be found in the folder in the root directory with the name of the album. Enjoy!
 
 ## Additional Options
 
@@ -56,7 +56,6 @@ I'd like to add support for:
 -   Better error handling
     -   Right now, if the primary method fails (default SoundCloud), the whole code crashes. Ideally, it would move on to the secondary method (default YouTube).
 -   Genius API for lyrics
--   Rename "album" directory to actual album name
 
 ## Development
 

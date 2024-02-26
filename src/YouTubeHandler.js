@@ -5,10 +5,8 @@ const ytdl = require("ytdl-core");
 const ffmpeg = require("fluent-ffmpeg");
 const path = require("path");
 const { writeMP3WithMetadata } = require("./writeMP3");
-const Lame = require("node-lame").Lame;
 
-const tempFolderPath = path.join(__dirname, "..", "temp");
-const albumFolderPath = path.join(__dirname, "..", "album");
+let albumFolderPath = path.join(__dirname, "..", "album");
 let trackLengths = [];
 let ignoreDiscrepancy = false;
 let downloadSuccessful = false;
@@ -28,6 +26,10 @@ function getTrackLengths(data) {
     return new Promise((resolve, reject) => {
         // Load the HTML content into cheerio
         const $ = cheerio.load(data);
+
+        // Grab the name of the album to name the directory
+        const albumTitle = $(".album_title").contents().first().text().trim();
+        albumFolderPath = path.join(__dirname, "..", albumTitle);
 
         // Find the <ul> element with id "tracks"
         const ulElement = $("#tracks");
@@ -112,59 +114,15 @@ async function downloadTracks(data, specifiedLink) {
 
                 audioStream.pipe(fs.createWriteStream("fullAudio.mp3"));
 
-                const deleteTempFiles = () => {
-                    return new Promise((resolve, reject) => {
-                        fs.readdir(tempFolderPath, (err, files) => {
-                            if (err) {
-                                console.error("Error reading folder:", err);
-                                reject(err);
-                                return;
-                            }
-
-                            // Loop through each file and delete it
-                            const deletionPromises = files.map((file) => {
-                                const filePath = path.join(
-                                    tempFolderPath,
-                                    file
-                                );
-
-                                return new Promise(
-                                    (resolveFile, rejectFile) => {
-                                        // Delete the file
-                                        fs.unlink(filePath, (err) => {
-                                            if (err) {
-                                                console.error(
-                                                    "Error deleting file:",
-                                                    filePath,
-                                                    err
-                                                );
-                                                rejectFile(err);
-                                            } else {
-                                                console.log(
-                                                    "Deleted file:",
-                                                    filePath
-                                                );
-                                                resolveFile();
-                                            }
-                                        });
-                                    }
-                                );
-                            });
-
-                            // Wait for all deletion promises to resolve
-                            Promise.all(deletionPromises)
-                                .then(() => resolve())
-                                .catch((err) => reject(err));
-                        });
-                    });
-                };
-
                 const deleteAlbumFiles = () => {
                     return new Promise((resolve, reject) => {
                         fs.readdir(albumFolderPath, (err, files) => {
                             if (err) {
-                                console.error("Error reading folder:", err);
-                                reject(err);
+                                console.log(
+                                    "This directory doesn't exist! Creating..."
+                                );
+                                fs.mkdirSync(albumFolderPath);
+                                resolve();
                                 return;
                             }
 
@@ -214,10 +172,6 @@ async function downloadTracks(data, specifiedLink) {
                 return new Promise((resolve, reject) => {
                     audioStream.on("end", async () => {
                         downloadSuccessful = true;
-                        console.log(
-                            "Audio downloaded! Deleting old temp files..."
-                        );
-                        await deleteTempFiles();
 
                         console.log("Deleting old album files...");
                         await deleteAlbumFiles();
@@ -239,88 +193,56 @@ async function downloadTracks(data, specifiedLink) {
 }
 
 async function processAudio() {
-    await Promise.all(
-        trackLengths.slice(0, -1).map(async (length, index) => {
-            return new Promise((resolve, reject) => {
-                fs.writeFile(
-                    `../temp/temp${index}.mp3`,
-                    Buffer.alloc(0),
-                    async (err) => {
-                        if (err) {
-                            console.error(err);
-                            reject(err);
-                        } else {
-                            console.log(
-                                `File temp/temp${index}.mp3 has been created successfully.`
-                            );
-                            fs.writeFile(
-                                `../album/${index}.mp3`,
-                                Buffer.alloc(0),
-                                async (err) => {
-                                    if (err) {
-                                        console.error(err);
-                                        reject(err);
-                                    } else {
-                                        console.log(
-                                            `File album/${index}.mp3 has been created successfully.`
+    for (let index = 0; index < trackLengths.length - 1; index++) {
+        await new Promise((resolve, reject) => {
+            fs.writeFile(
+                path.join(albumFolderPath, `${index}.mp3`),
+                Buffer.alloc(0),
+                async (err) => {
+                    if (err) {
+                        console.error(err);
+                        reject(err);
+                    } else {
+                        console.log(
+                            `File ${index}.mp3 has been created successfully.`
+                        );
+                        try {
+                            await new Promise((resolveFFMPEG, rejectFFMPEG) => {
+                                ffmpeg("fullAudio.mp3")
+                                    .setStartTime(trackLengths[index])
+                                    .setDuration(
+                                        trackLengths[index + 1] -
+                                            trackLengths[index]
+                                    )
+                                    .audioCodec("libmp3lame")
+                                    .audioQuality(0)
+                                    .output(
+                                        path.join(
+                                            albumFolderPath,
+                                            `${index}.mp3`
+                                        )
+                                    )
+                                    .on("end", () => {
+                                        resolveFFMPEG();
+                                    })
+                                    .on("error", (err) => {
+                                        console.error(
+                                            "Error cropping audio:",
+                                            err.message
                                         );
-                                        await new Promise(
-                                            (resolveFFMPEG, rejectFFMPEG) => {
-                                                ffmpeg("fullAudio.mp3")
-                                                    .setStartTime(
-                                                        trackLengths[index]
-                                                    )
-                                                    .setDuration(
-                                                        trackLengths[
-                                                            index + 1
-                                                        ] - trackLengths[index]
-                                                    )
-                                                    .audioCodec("libmp3lame")
-                                                    .audioQuality(0) // Set audio quality (0 is highest)
-                                                    .addOption(
-                                                        "-metadata",
-                                                        "encoder=LAME3.100"
-                                                    )
-                                                    .output(
-                                                        `../temp/temp${index}.mp3`
-                                                    )
-                                                    .on("end", () => {
-                                                        const encoder =
-                                                            new Lame({
-                                                                output: `../album/${index}.mp3`,
-                                                                bitrate: 192,
-                                                            }).setFile(
-                                                                `../temp/temp${index}.mp3`
-                                                            );
-                                                        encoder
-                                                            .encode()
-                                                            .then(() => {
-                                                                console.log(
-                                                                    `Audio cropped successfully for track ${index}!`
-                                                                );
-                                                                resolveFFMPEG();
-                                                            });
-                                                    })
-                                                    .on("error", (err) => {
-                                                        console.error(
-                                                            "Error cropping audio:",
-                                                            err.message
-                                                        );
-                                                        rejectFFMPEG(err);
-                                                    })
-                                                    .run();
-                                            }
-                                        );
-                                        resolve();
-                                    }
-                                }
-                            );
+                                        rejectFFMPEG(err);
+                                    })
+                                    .run();
+                            });
+                            resolve();
+                        } catch (error) {
+                            reject(error);
                         }
                     }
-                );
-            });
-        })
-    );
+                }
+            );
+        });
+    }
 }
 
 async function handleYouTubeLink(data, specifiedLink, ignore) {

@@ -4,14 +4,15 @@ const scdl = require("soundcloud-downloader").default;
 const cheerio = require("cheerio");
 const { writeMP3WithMetadata } = require("./writeMP3");
 
-const albumFolderPath = path.join(__dirname, "..", "album");
+let albumFolderPath = path.join(__dirname, "..", "album");
 
 async function deleteOld() {
     return new Promise((resolve, reject) => {
         fs.readdir(albumFolderPath, (err, files) => {
             if (err) {
-                console.error("Error reading folder:", err);
-                reject(err);
+                console.log("This directory doesn't exist! Creating...");
+                fs.mkdirSync(albumFolderPath);
+                resolve();
                 return;
             }
 
@@ -50,11 +51,16 @@ async function downloadTracks(data, specifiedLink) {
         // Load the HTML content into cheerio
         const $ = cheerio.load(data);
 
+        // Grab the name of the album to name the directory
+        const albumTitle = $(".album_title").contents().first().text().trim();
+        albumFolderPath = path.join(__dirname, "..", albumTitle);
+        await deleteOld();
+
         // There's a lot of layers here:
         //     Find the div with the media_link_button_container_top id
         //     Grab the data-links attribute
         //     Turn it into a JSON
-        //     Grab the youtube field
+        //     Grab the soundcloud field
         const SoundCloudLinks = JSON.parse(
             $("#media_link_button_container_top").attr("data-links")
         ).soundcloud;
@@ -80,7 +86,7 @@ async function downloadTracks(data, specifiedLink) {
                     streams.forEach((val, idx) => {
                         val.pipe(
                             fs.createWriteStream(
-                                path.join("../album/", idx + ".mp3")
+                                path.join(albumFolderPath, `${idx}.mp3`)
                             )
                         );
                     });
@@ -88,7 +94,9 @@ async function downloadTracks(data, specifiedLink) {
                 });
         } else {
             await scdl.download("https://" + defaultLink).then((stream) => {
-                stream.pipe(fs.createWriteStream(path.join("../album/0.mp3")));
+                stream.pipe(
+                    fs.createWriteStream(path.join(albumFolderPath, "0.mp3"))
+                );
 
                 resolve();
             });
@@ -97,7 +105,6 @@ async function downloadTracks(data, specifiedLink) {
 }
 
 async function handleSoundCloudLink(data, specifiedLink) {
-    await deleteOld();
     await downloadTracks(data, specifiedLink);
     writeMP3WithMetadata(data);
 }
