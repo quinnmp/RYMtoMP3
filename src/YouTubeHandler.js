@@ -193,56 +193,63 @@ async function downloadTracks(data, specifiedLink) {
 }
 
 async function processAudio() {
-    for (let index = 0; index < trackLengths.length - 1; index++) {
-        await new Promise((resolve, reject) => {
-            fs.writeFile(
-                path.join(albumFolderPath, `${index}.mp3`),
-                Buffer.alloc(0),
-                async (err) => {
-                    if (err) {
-                        console.error(err);
-                        reject(err);
-                    } else {
-                        console.log(
-                            `File ${index}.mp3 has been created successfully.`
-                        );
-                        try {
-                            await new Promise((resolveFFMPEG, rejectFFMPEG) => {
-                                ffmpeg("fullAudio.mp3")
-                                    .setStartTime(trackLengths[index])
-                                    .setDuration(
-                                        trackLengths[index + 1] -
-                                            trackLengths[index]
-                                    )
-                                    .audioCodec("libmp3lame")
-                                    .audioQuality(0)
-                                    .output(
-                                        path.join(
-                                            albumFolderPath,
-                                            `${index}.mp3`
-                                        )
-                                    )
-                                    .on("end", () => {
-                                        resolveFFMPEG();
-                                    })
-                                    .on("error", (err) => {
-                                        console.error(
-                                            "Error cropping audio:",
-                                            err.message
-                                        );
-                                        rejectFFMPEG(err);
-                                    })
-                                    .run();
-                            });
-                            resolve();
-                        } catch (error) {
-                            reject(error);
+    await Promise.all(
+        trackLengths.slice(0, -1).map(async (length, index) => {
+            await new Promise((resolve, reject) => {
+                fs.writeFile(
+                    path.join(albumFolderPath, `${index}.mp3`),
+                    Buffer.alloc(0),
+                    async (err) => {
+                        if (err) {
+                            console.error(err);
+                            reject(err);
+                        } else {
+                            console.log(
+                                `File ${index}.mp3 has been created successfully.`
+                            );
+                            try {
+                                await new Promise(
+                                    (resolveFFMPEG, rejectFFMPEG) => {
+                                        ffmpeg("fullAudio.mp3")
+                                            .setStartTime(trackLengths[index])
+                                            .setDuration(
+                                                trackLengths[index + 1] -
+                                                    trackLengths[index]
+                                            )
+                                            .audioCodec("libmp3lame")
+                                            .audioQuality(0)
+                                            .output(
+                                                path.join(
+                                                    albumFolderPath,
+                                                    `${index}.mp3`
+                                                )
+                                            )
+                                            .on("end", () => {
+                                                console.log(
+                                                    `Audio cropped for track ${index}`
+                                                );
+                                                resolveFFMPEG();
+                                            })
+                                            .on("error", (err) => {
+                                                console.error(
+                                                    "Error cropping audio:",
+                                                    err.message
+                                                );
+                                                rejectFFMPEG(err);
+                                            })
+                                            .run();
+                                    }
+                                );
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
                         }
                     }
-                }
-            );
-        });
-    }
+                );
+            });
+        })
+    );
 }
 
 async function handleYouTubeLink(data, specifiedLink, ignore) {
