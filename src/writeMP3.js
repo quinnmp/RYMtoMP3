@@ -136,7 +136,10 @@ async function writeMP3WithMetadata(data) {
                     __dirname,
                     "..",
                     metadata.album,
-                    `${metadata.title}.mp3`
+                    // Sanintize the song titles
+                    `${metadata.title
+                        .replace(/[^a-zA-Z0-9\-]/g, "-")
+                        .toLowerCase()}.mp3`
                 ),
                 (err) => {
                     if (err) {

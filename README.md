@@ -52,9 +52,8 @@ I've found the best results on a private network - if you have a phone, start up
 I'd like to add support for:
 
 -   Disc numbers
+-   Custom timestamps
 -   YouTube playlist support
--   Better error handling
-    -   Right now, if the primary method fails (default SoundCloud), the whole code crashes. Ideally, it would move on to the secondary method (default YouTube).
 -   Genius API for lyrics
 
 ## Development
