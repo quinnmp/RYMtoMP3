@@ -27,6 +27,11 @@ For example, if I wanted to prefer YouTube and ignore this album length discrepa
 
 `node ./main.js {rym link} -y -i`
 
+You can also specify your own links, if you want. Use at your own risk. You can use `-u` to supply a YouTube link and `-s` to supply a SoundCloud link.
+
+`node ./main.js {rym link} -y -i -u {YouTube link}`
+"I want to prioritize YouTube over SoundCloud, ignore any album length discrepancy, and I want to use my own supplied YouTube link instead of the one on RYM (or in place of it if there isn't one)"
+
 ## Specs
 
 This supports the following metadata:
