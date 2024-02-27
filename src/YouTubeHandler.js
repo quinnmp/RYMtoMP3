@@ -56,9 +56,13 @@ function getTrackLengths(data) {
             let cumulativeTimestampArray = [0];
 
             for (let i = 0; i < spanTextArray.length; i++) {
-                cumulativeTimestampArray.push(
-                    cumulativeTimestampArray[i] + spanTextArray[i]
-                );
+                if (spanTextArray[i] != 0) {
+                    cumulativeTimestampArray.push(
+                        cumulativeTimestampArray[
+                            cumulativeTimestampArray.length - 1
+                        ] + spanTextArray[i]
+                    );
+                }
             }
 
             resolve(cumulativeTimestampArray);

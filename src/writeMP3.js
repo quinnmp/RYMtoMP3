@@ -10,6 +10,17 @@ const outputFolderPath = path.join(__dirname, "..", "output");
 async function dataToMetadata(data) {
     const $ = cheerio.load(data);
     const trackList = $("#tracks li.track").toArray();
+
+    // Prune tracklist for any bad tracks
+    trackList.forEach((element, index) => {
+        const durationSpan = $(element).find("span.tracklist_duration");
+        const duration = Number(durationSpan.attr("data-inseconds"));
+        if (duration == 0) {
+            // Remove from this array
+            trackList.splice(index, 1);
+        }
+    });
+
     trackList.splice(-1, 1);
 
     let album = $("div.album_title:first").text().trim();
@@ -32,10 +43,8 @@ async function dataToMetadata(data) {
     genreTexts = genreTexts.substring(0, genreTexts.length - 1);
 
     // Get an array of all track li elements
-    let tracks = $("ul.tracks:first li.track");
-    tracks = tracks.slice(0, -1);
     let featuredArtistTexts = [];
-    tracks.each(function (index, element) {
+    trackList.forEach((element, index) => {
         // Search for links to artists within the track li - this means they are a featured artist
         const featuredArtists = $(element).find("li.featured_credit a.artist");
         featuredArtistTexts.push("");
@@ -81,6 +90,7 @@ async function dataToMetadata(data) {
 
     let metadata = [];
 
+    // Actually apply the metadata to the tracks
     trackList.forEach((element, index) => {
         let title = $(element).find("span.tracklist_title:first").text().trim();
         title = title.split("\n")[0].trim();
@@ -88,7 +98,14 @@ async function dataToMetadata(data) {
         if (featuredArtistTexts[index] != "") {
             trackArtists = trackArtists + "\0" + featuredArtistTexts[index];
         }
-        let trackNumber = index + 1;
+        let discNumber = 1;
+        let trackNumber = $(element).find("span.tracklist_num").text().trim();
+        console.log(trackNumber);
+        if (trackNumber.includes(".")) {
+            discNumber = trackNumber.split(".")[0];
+            trackNumber = trackNumber.split(".")[1];
+            console.log("Disc number " + discNumber);
+        }
         let trackMetadata = {
             title: title,
             performerInfo: trackArtists,
@@ -96,6 +113,7 @@ async function dataToMetadata(data) {
             year: year,
             genre: genreTexts,
             trackNumber: trackNumber,
+            discNumber: discNumber,
             image: image,
         };
         metadata.push(trackMetadata);
@@ -124,6 +142,7 @@ async function writeMP3WithMetadata(data) {
                 year: metadata.year,
                 genre: metadata.genre,
                 trackNumber: metadata.trackNumber,
+                partOfSet: metadata.discNumber,
                 image: metadata.image,
             };
 

@@ -51,7 +51,6 @@ I've found the best results on a private network - if you have a phone, start up
 
 I'd like to add support for:
 
--   Disc numbers
 -   Custom timestamps
 -   YouTube playlist support
 -   Genius API for lyrics
