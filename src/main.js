@@ -11,6 +11,11 @@ const argv = yargs
         describe: "Specify a specific YouTube link",
         type: "string",
     })
+    .option("timestamps", {
+        alias: "t",
+        describe: "Specify your own timestamps to use for YouTube parsing",
+        type: "string",
+    })
     .option("SoundCloudLink", {
         alias: "s",
         describe: "Specify a specific SoundCloud link",
@@ -34,12 +39,14 @@ const preferYouTube = argv.preferYouTube;
 const ignore = argv.ignore;
 const YouTubeLink = argv.YouTubeLink;
 const SoundCloudLink = argv.SoundCloudLink;
+const timestamps = argv.timestamps;
 
 console.log("URL:", url);
 console.log("Prefer YouTube:", preferYouTube);
 console.log("Ignore:", ignore);
 console.log("YouTube Link:", YouTubeLink);
 console.log("SoundCloud Link:", SoundCloudLink);
+console.log("Timestamp string:", timestamps);
 
 axios
     .get(url)
@@ -81,7 +88,7 @@ axios
                     YouTubeLink != undefined
                 ) {
                     console.log("YouTube link found!");
-                    handleYouTubeLink(data, YouTubeLink, ignore);
+                    handleYouTubeLink(data, YouTubeLink, ignore, timestamps);
                 } else {
                     console.log("YouTube link not found...");
                     console.log(
@@ -92,7 +99,7 @@ axios
         } else {
             if (mediaLinks.youtube != undefined || YouTubeLink != undefined) {
                 console.log("YouTube link found!");
-                handleYouTubeLink(data, YouTubeLink, ignore);
+                handleYouTubeLink(data, YouTubeLink, ignore, timestamps);
             } else {
                 console.log("YouTube link not found...");
                 if (

@@ -32,6 +32,37 @@ You can also specify your own links, if you want. Use at your own risk. You can 
 `node ./main.js {rym link} -y -i -u {YouTube link}`
 "I want to prioritize YouTube over SoundCloud, ignore any album length discrepancy, and I want to use my own supplied YouTube link instead of the one on RYM (or in place of it if there isn't one)"
 
+Not only that, it's also possible to provide custom timestamps for a YouTube video. The idea here is that you could find a YouTube video that has slightly different cropping, which would otherwise fail to be cropped correctly. If you can find the correct timestamps (in the comments, description, etc.) you can inject those instead.
+
+You can actually just copy-paste a full comment without parsing the timestamps yourself. For example, if you had a comment that said
+
+<blockquote>
+@apolosteez47<br>
+11 months ago (edited)<br>
+Tracklist For All Phone Users<br>
+<br>
+(0:00) - 1. United In Grief<br>
+(4:14) - 2. N95<br>
+(7:30) - 3. Worldwide Steppers<br>
+(10:54) - 4. Die Hard ft. Blxst & Amanda Reifer<br>
+(14:53) - 5. Father Time ft. Sampha<br>
+(18:35) - 6. Rich(Interlude)<br>
+(20:20) - 7. Rich Spirit<br>
+(23:40) - 8. We Cry Together ft. Taylor Paige<br>
+(29:09) - 9. Purple Hearts ft. Summer Walker & Ghostface Killah<br>
+(34:36) - 10. Count Me Out<br>
+(39:19) - 11. Crown<br>
+(43:43) - 12. Silent Hill ft. Kodak Black<br>
+(47:24) - 13. Savior(Interlude)<br>
+(49:56) - 14. Savior ft. Baby Keem & Sam Dew<br>
+(53:41) - 15. Auntie Diaries<br>
+(58:22) - 16. Mr. Morale ft. Tanna Leone<br>
+(1:01:52) - 17. Mother I Sober ft. Beth Gibbons<br>
+(1:08:39) - 18. Mirror<br>
+</blockquote>
+<br>
+You can just post that full comment in a string input with `-t` and the program will use regex to parse anything that looks like a timestamp. As always, use at your own risk.
+
 ## Specs
 
 This supports the following metadata:
@@ -42,6 +73,7 @@ This supports the following metadata:
 -   Year
 -   Genre
 -   Track number
+-   Disc number
 -   Album cover
 
 It also uses LAME MP3 encoding because Spotify prefers it.
@@ -56,7 +88,6 @@ I've found the best results on a private network - if you have a phone, start up
 
 I'd like to add support for:
 
--   Custom timestamps
 -   YouTube playlist support
 -   Genius API for lyrics
 

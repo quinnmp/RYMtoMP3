@@ -9,6 +9,7 @@ const { writeMP3WithMetadata } = require("./writeMP3");
 let albumFolderPath = path.join(__dirname, "..", "album");
 let trackLengths = [];
 let ignoreDiscrepancy = false;
+let customTimestamps = "";
 let downloadSuccessful = false;
 
 async function getVideoLength(videoUrl) {
@@ -51,16 +52,30 @@ function getTrackLengths(data) {
                     return duration;
                 })
                 .get()
-                .filter((duration) => !isNaN(duration));
+                .filter((duration) => !isNaN(duration) && duration != 0);
 
-            let cumulativeTimestampArray = [0];
-
-            for (let i = 0; i < spanTextArray.length; i++) {
-                if (spanTextArray[i] != 0) {
-                    cumulativeTimestampArray.push(
-                        cumulativeTimestampArray[
+            let cumulativeTimestampArray = [];
+            if (customTimestamps) {
+                cumulativeTimestampArray =
+                    handleCustomTimestamps(customTimestamps);
+                if (
+                    cumulativeTimestampArray.length - 1 !=
+                    spanTextArray.length
+                ) {
+                    throw new Error(
+                        `Got ${
                             cumulativeTimestampArray.length - 1
-                        ] + spanTextArray[i]
+                        } custom timestamps, but there should be ${
+                            spanTextArray.length
+                        }`
+                    );
+                }
+            } else {
+                cumulativeTimestampArray = [0];
+
+                for (let i = 0; i < spanTextArray.length; i++) {
+                    cumulativeTimestampArray.push(
+                        cumulativeTimestampArray[i] + spanTextArray[i]
                     );
                 }
             }
@@ -214,12 +229,10 @@ async function processAudio() {
                             try {
                                 await new Promise(
                                     (resolveFFMPEG, rejectFFMPEG) => {
-                                        ffmpeg("fullAudio.mp3")
+                                        let audioCommand = ffmpeg(
+                                            "fullAudio.mp3"
+                                        )
                                             .setStartTime(trackLengths[index])
-                                            .setDuration(
-                                                trackLengths[index + 1] -
-                                                    trackLengths[index]
-                                            )
                                             .audioCodec("libmp3lame")
                                             .audioQuality(0)
                                             .output(
@@ -233,15 +246,34 @@ async function processAudio() {
                                                     `Audio cropped for track ${index}`
                                                 );
                                                 resolveFFMPEG();
-                                            })
-                                            .on("error", (err) => {
-                                                console.error(
-                                                    "Error cropping audio:",
-                                                    err.message
-                                                );
-                                                rejectFFMPEG(err);
-                                            })
-                                            .run();
+                                            });
+                                        // If the next duration is infinity, just go until the end of the video
+                                        try {
+                                            audioCommand
+                                                .clone()
+                                                .setDuration(
+                                                    trackLengths[index + 1] -
+                                                        trackLengths[index]
+                                                )
+                                                .run();
+                                        } catch (error) {
+                                            // If this fails, we assume it's a bad duration and remove it
+                                            console.log(
+                                                "Bad duration! We assume this means that we have a timestamp past the end of the file. Check timestamps!"
+                                            );
+                                            console.log(
+                                                "Cropping without duration..."
+                                            );
+                                            audioCommand
+                                                .on("error", (err) => {
+                                                    console.error(
+                                                        "Error cropping audio:",
+                                                        err.message
+                                                    );
+                                                    rejectFFMPEG(err);
+                                                })
+                                                .run();
+                                        }
                                     }
                                 );
                                 resolve();
@@ -256,8 +288,35 @@ async function processAudio() {
     );
 }
 
-async function handleYouTubeLink(data, specifiedLink, ignore) {
+function handleCustomTimestamps(customTimestamps) {
+    // Assume timestamps are in the form "M:SS"
+    const pattern = /\b(?:\d{1,2}:)?\d{1,2}:\d{2}\b/g;
+
+    // Extract timestamps
+    const timestamps = customTimestamps.match(pattern);
+
+    // Calculate duration in seconds for each timestamp
+    const durationsInSeconds = timestamps.map((timestamp) => {
+        const [seconds, minutes, hours] = timestamp
+            .split(":")
+            .map(Number)
+            .reverse();
+        if (hours) {
+            return hours * 3600 + minutes * 60 + seconds;
+        } else {
+            return minutes * 60 + seconds;
+        }
+    });
+
+    // We don't know how long the album is. Assume the last track goes to the end of the video by passing in infinity here.
+    durationsInSeconds.push(Number.MAX_SAFE_INTEGER);
+
+    return durationsInSeconds;
+}
+
+async function handleYouTubeLink(data, specifiedLink, ignore, timestamps) {
     ignoreDiscrepancy = ignore;
+    customTimestamps = timestamps;
     await downloadTracks(data, specifiedLink);
     if (downloadSuccessful) {
         await processAudio();
