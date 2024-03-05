@@ -1,4 +1,3 @@
-const axios = require("axios");
 const cheerio = require("cheerio");
 const fs = require("fs");
 const ytdl = require("ytdl-core");
@@ -246,34 +245,25 @@ async function processAudio() {
                                                     `Audio cropped for track ${index}`
                                                 );
                                                 resolveFFMPEG();
+                                            })
+                                            .on("error", (err) => {
+                                                console.error(
+                                                    "Error cropping audio:",
+                                                    err.message
+                                                );
+                                                rejectFFMPEG(err);
                                             });
                                         // If the next duration is infinity, just go until the end of the video
-                                        try {
-                                            audioCommand
-                                                .clone()
-                                                .setDuration(
-                                                    trackLengths[index + 1] -
-                                                        trackLengths[index]
-                                                )
-                                                .run();
-                                        } catch (error) {
-                                            // If this fails, we assume it's a bad duration and remove it
-                                            console.log(
-                                                "Bad duration! We assume this means that we have a timestamp past the end of the file. Check timestamps!"
+                                        if (
+                                            trackLengths[index + 1] !=
+                                            Number.MAX_SAFE_INTEGER
+                                        ) {
+                                            audioCommand.setDuration(
+                                                trackLengths[index + 1] -
+                                                    trackLengths[index]
                                             );
-                                            console.log(
-                                                "Cropping without duration..."
-                                            );
-                                            audioCommand
-                                                .on("error", (err) => {
-                                                    console.error(
-                                                        "Error cropping audio:",
-                                                        err.message
-                                                    );
-                                                    rejectFFMPEG(err);
-                                                })
-                                                .run();
                                         }
+                                        audioCommand.run();
                                     }
                                 );
                                 resolve();
