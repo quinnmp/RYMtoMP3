@@ -138,7 +138,7 @@ async function processAudio() {
                                                 tags.title =
                                                     songName +
                                                     "(part " +
-                                                    index +
+                                                    (index + 1) +
                                                     ")";
                                                 NodeID3.write(
                                                     tags,
